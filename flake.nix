@@ -1,41 +1,36 @@
 {
-  description = "An empty flake template that you can adapt to your own environment";
+  description = "Flake with the development environment for the project";
 
-  # Flake inputs
-  inputs.nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1.*.tar.gz";
+  inputs = {
+    nixpkgs-linux.url = "github:NixOS/nixpkgs/nixos-25.05";
+    nixpkgs-darwin.url = "github:NixOS/nixpkgs/nixpkgs-25.05-darwin";
+    systems.url = "github:nix-systems/default";
+    flake-utils.url = "github:numtide/flake-utils";
+  };
 
-  # Flake outputs
-  outputs = { self, nixpkgs }:
-    let
-      # The systems supported for this flake
-      supportedSystems = [
-        "x86_64-linux" # 64-bit Intel/AMD Linux
-        "aarch64-linux" # 64-bit ARM Linux
-        "x86_64-darwin" # 64-bit Intel macOS
-        "aarch64-darwin" # 64-bit ARM macOS
-      ];
-
-      # Helper to provide system-specific attributes
-      forEachSupportedSystem = f: nixpkgs.lib.genAttrs supportedSystems (system: f {
-        pkgs = import nixpkgs { inherit system; };
-      });
-    in
+  outputs =
     {
-      devShells = forEachSupportedSystem ({ pkgs }: {
-        default = pkgs.mkShell {
-          # The Nix packages provided in the environment
-          # Add any you need here
-          packages = with pkgs; [ 
-            nodePackages.prettier
+      nixpkgs-linux,
+      nixpkgs-darwin,
+      flake-utils,
+      ...
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs =
+          import (if builtins.match ".*-darwin" system != null then nixpkgs-darwin else nixpkgs-linux)
+            {
+              inherit system;
+            };
+      in
+      {
+        devShells.default = pkgs.mkShell {
+          packages = [
+            pkgs.nodePackages.prettier
+            pkgs.nixfmt-rfc-style
           ];
-
-          # Set any environment variables for your dev shell
-          env = { };
-
-          # Add any shell logic you want executed any time the environment is activated
-          shellHook = ''
-          '';
         };
-      });
-    };
+      }
+    );
 }
